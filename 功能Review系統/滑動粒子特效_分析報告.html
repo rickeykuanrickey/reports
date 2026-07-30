@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>滑動粒子特效 — 功能 Review 分析報告</title>
+<style>
+:root {
+  --bg: #f5f4ef;
+  --surface: #ffffff;
+  --surface-2: #fafaf8;
+  --border: #e8e6de;
+  --text: #1a1917;
+  --text-2: #4a4844;
+  --text-3: #8a8784;
+  --accent: #2563eb;
+  --good: #15803d;
+  --warn: #b45309;
+  --bad: #b91c1c;
+  --good-bg: #f0fdf4;
+  --warn-bg: #fffbeb;
+  --bad-bg: #fef2f2;
+  --bar-h: 22px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', 'Noto Sans TC', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 44px 24px 80px;
+  max-width: 1020px;
+  margin: 0 auto;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* ── Header ── */
+.page-header { margin-bottom: 40px; }
+.page-header .eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  margin-bottom: 8px;
+}
+.page-header h1 {
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.page-header .meta {
+  font-size: 13px;
+  color: var(--text-3);
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.meta span::before { content: '· '; }
+.meta span:first-child::before { content: ''; }
+
+/* ── KPI ── */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 44px;
+}
+@media (max-width: 720px) { .kpi-row { grid-template-columns: repeat(2, 1fr); } }
+.kpi-tile {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px;
+}
+.kpi-tile .k-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--text-3);
+  margin-bottom: 10px;
+}
+.kpi-tile .k-val {
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text);
+  margin-bottom: 5px;
+}
+.kpi-tile .k-sub { font-size: 12px; color: var(--text-3); }
+
+/* ── Section ── */
+section { margin-bottom: 48px; }
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.section-head h2 {
+  font-size: 16px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.count-badge {
+  font-size: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 2px 11px;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+.section-head::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ── Card ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 22px;
+  margin-bottom: 12px;
+}
+.card-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--text-3);
+  margin-bottom: 16px;
+}
+
+.chart-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+@media (max-width: 620px) { .chart-row { grid-template-columns: 1fr; } }
+
+/* ── Bar Chart ── */
+.bar-row {
+  display: grid;
+  grid-template-columns: 160px 1fr 80px;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 9px;
+}
+.bar-row:last-child { margin-bottom: 0; }
+.bar-label {
+  font-size: 12.5px;
+  color: var(--text-2);
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bar-track {
+  background: #ede9de;
+  border-radius: 4px;
+  height: var(--bar-h);
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--accent);
+  transition: width 0.3s;
+}
+.bar-fill.c-good  { background: #16a34a; }
+.bar-fill.c-warn  { background: #d97706; }
+.bar-fill.c-bad   { background: #dc2626; }
+.bar-fill.c-muted { background: #9ca3af; }
+.bar-val {
+  font-size: 12px;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Mini KPI ── */
+.mini-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.mini-kpi {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 15px 16px;
+  text-align: center;
+}
+.mk-label { font-size: 11px; color: var(--text-3); margin-bottom: 6px; }
+.mk-value { font-size: 24px; font-weight: 700; color: var(--text); }
+.mk-sub   { font-size: 11px; color: var(--text-3); margin-top: 3px; }
+
+/* ── Feedback items ── */
+.feedback-item {
+  padding: 12px 14px;
+  border-left: 3px solid var(--accent);
+  background: var(--surface-2);
+  border-radius: 0 6px 6px 0;
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.65;
+  margin-bottom: 8px;
+}
+.feedback-item:last-child { margin-bottom: 0; }
+.feedback-item.bl-bad   { border-left-color: #dc2626; }
+.feedback-item.bl-good  { border-left-color: #16a34a; }
+.feedback-item.bl-warn  { border-left-color: #d97706; }
+.fi-source {
+  font-size: 11px;
+  color: var(--text-3);
+  margin-top: 4px;
+}
+
+/* ── Cross Analysis ── */
+.cross-list { }
+.cross-item {
+  display: flex;
+  gap: 14px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+.cross-item:last-child { border-bottom: none; padding-bottom: 0; }
+.cross-icon {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 800;
+  margin-top: 1px;
+}
+.cross-icon.r { background: #fee2e2; color: #b91c1c; }
+.cross-icon.y { background: #fef3c7; color: #92400e; }
+.cross-icon.g { background: #dcfce7; color: #15803d; }
+.ci-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 5px;
+  color: var(--text);
+}
+.ci-body {
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.65;
+}
+
+/* ── Insight cards ── */
+.insights-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 620px) { .insights-grid { grid-template-columns: 1fr; } }
+.insight-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: 0 10px 10px 0;
+  padding: 16px 18px;
+}
+.insight-card.ic-bad  { border-left-color: #dc2626; background: #fff8f8; }
+.insight-card.ic-warn { border-left-color: #d97706; background: #fffdf5; }
+.insight-card.ic-blue { border-left-color: #7c3aed; background: #faf5ff; }
+.ic-tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  padding: 2px 8px;
+  border-radius: 3px;
+  margin-bottom: 9px;
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+.ic-tag.t-bad  { background: #fee2e2; color: #991b1b; }
+.ic-tag.t-warn { background: #fef3c7; color: #92400e; }
+.ic-tag.t-blue { background: #ede9fe; color: #5b21b6; }
+.ic-title { font-size: 14px; font-weight: 700; margin-bottom: 6px; color: var(--text); }
+.ic-body  { font-size: 13px; color: var(--text-2); line-height: 1.65; }
+
+/* ── Summary box ── */
+.summary-box {
+  background: #fffdf4;
+  border: 1px solid #e9d66b;
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin-bottom: 12px;
+}
+.sb-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #92400e;
+  margin-bottom: 8px;
+}
+.sb-body {
+  font-size: 13.5px;
+  color: var(--text-2);
+  line-height: 1.7;
+}
+
+/* ── Footer ── */
+.footer {
+  text-align: center;
+  padding: 24px 0;
+  font-size: 12px;
+  color: var(--text-3);
+  margin-top: 44px;
+  border-top: 1px solid var(--border);
+}
+</style>
+</head>
+<body>
+
+<!-- ────────────── Header ────────────── -->
+<div class="page-header">
+  <div class="eyebrow">功能 Review 分析報告</div>
+  <h1>滑動粒子特效</h1>
+  <div class="meta">
+    <span>功能上線：2026-05-07</span>
+    <span>問卷回收：2026/7/15 – 7/23</span>
+    <span>報告產生：2026-07-30</span>
+  </div>
+</div>
+
+<!-- ────────────── KPI ────────────── -->
+<div class="kpi-row">
+  <div class="kpi-tile">
+    <div class="k-label">總回覆</div>
+    <div class="k-val">28</div>
+    <div class="k-sub">份問卷</div>
+  </div>
+  <div class="kpi-tile">
+    <div class="k-label">Campaign 端</div>
+    <div class="k-val">13</div>
+    <div class="k-sub">PM 7 / 設計師 4 / 其他 2</div>
+  </div>
+  <div class="kpi-tile">
+    <div class="k-label">業務端</div>
+    <div class="k-val">15</div>
+    <div class="k-sub">份回覆</div>
+  </div>
+  <div class="kpi-tile">
+    <div class="k-label">已成交客戶</div>
+    <div class="k-val">0</div>
+    <div class="k-sub">家（尚無成交紀錄）</div>
+  </div>
+</div>
+
+<!-- ────────────── Campaign 端 ────────────── -->
+<section>
+  <div class="section-head">
+    <h2>Campaign 端分析</h2>
+    <span class="count-badge">13 份回覆</span>
+  </div>
+
+  <div class="chart-row">
+    <div class="card">
+      <div class="card-title">功能知曉率</div>
+      <div class="bar-row">
+        <div class="bar-label">知道，且清楚細節</div>
+        <div class="bar-track"><div class="bar-fill c-good" style="width:67%"></div></div>
+        <div class="bar-val">4人 (31%)</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">知道，但不清楚細節</div>
+        <div class="bar-track"><div class="bar-fill c-warn" style="width:100%"></div></div>
+        <div class="bar-val">6人 (46%)</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">不知道</div>
+        <div class="bar-track"><div class="bar-fill c-bad" style="width:50%"></div></div>
+        <div class="bar-val">3人 (23%)</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">功能使用率</div>
+      <div class="bar-row">
+        <div class="bar-label">有，超過 2 次</div>
+        <div class="bar-track"><div class="bar-fill c-good" style="width:10%"></div></div>
+        <div class="bar-val">1人 (8%)</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">有，1–2 次</div>
+        <div class="bar-track"><div class="bar-fill c-warn" style="width:20%"></div></div>
+        <div class="bar-val">2人 (15%)</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">沒有</div>
+        <div class="bar-track"><div class="bar-fill c-bad" style="width:100%"></div></div>
+        <div class="bar-val">10人 (77%)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart-row">
+    <div class="card">
+      <div class="card-title">得知來源（多選）</div>
+      <div class="bar-row">
+        <div class="bar-label">同事告知</div>
+        <div class="bar-track"><div class="bar-fill" style="width:100%"></div></div>
+        <div class="bar-val">4 次</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">LINE 官宣群組</div>
+        <div class="bar-track"><div class="bar-fill" style="width:75%"></div></div>
+        <div class="bar-val">3 次</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">內部會議</div>
+        <div class="bar-track"><div class="bar-fill" style="width:75%"></div></div>
+        <div class="bar-val">3 次</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Notion 文件</div>
+        <div class="bar-track"><div class="bar-fill" style="width:25%"></div></div>
+        <div class="bar-val">1 次</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">參與開發</div>
+        <div class="bar-track"><div class="bar-fill" style="width:25%"></div></div>
+        <div class="bar-val">1 次</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">發現問題（多選）</div>
+      <div class="bar-row">
+        <div class="bar-label">沒有問題</div>
+        <div class="bar-track"><div class="bar-fill c-good" style="width:100%"></div></div>
+        <div class="bar-val">5 次</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">操作不直覺</div>
+        <div class="bar-track"><div class="bar-fill c-bad" style="width:20%"></div></div>
+        <div class="bar-val">1 次</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">找不到功能按鈕</div>
+        <div class="bar-track"><div class="bar-fill c-bad" style="width:20%"></div></div>
+        <div class="bar-val">1 次</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">後台 demo 看不出效果</div>
+        <div class="bar-track"><div class="bar-fill c-bad" style="width:20%"></div></div>
+        <div class="bar-val">1 次</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mini-kpi-row">
+    <div class="mini-kpi">
+      <div class="mk-label">知曉率（至少知道）</div>
+      <div class="mk-value">77%</div>
+      <div class="mk-sub">10 / 13 人</div>
+    </div>
+    <div class="mini-kpi">
+      <div class="mk-label">平均完整度評分</div>
+      <div class="mk-value">3.8</div>
+      <div class="mk-sub">/ 5.0（13 人評分）</div>
+    </div>
+    <div class="mini-kpi">
+      <div class="mk-label">有使用者平均次數</div>
+      <div class="mk-value">1.7</div>
+      <div class="mk-sub">次（3 人有使用）</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">改進建議 / 補充意見（文字）</div>
+    <div class="feedback-item bl-good">
+      「光條方便，減少動態製作。一樣做靜態圖片客戶可以看到不同效果，對設計師來說省時。」
+      <div class="fi-source">設計師</div>
+    </div>
+    <div class="feedback-item bl-warn">
+      「有開幾個後台粒子 demo，但好像看不太出效果。」
+      <div class="fi-source">PM（後台預覽效果不夠直觀）</div>
+    </div>
+    <div class="feedback-item bl-warn">
+      「不熟悉，找不到打開光條的按鈕，要找一下。」
+      <div class="fi-source">設計師（操作引導不足）</div>
+    </div>
+  </div>
+</section>
+
+<!-- ────────────── 業務端 ────────────── -->
+<section>
+  <div class="section-head">
+    <h2>業務端分析</h2>
+    <span class="count-badge">15 份回覆</span>
+  </div>
+
+  <div class="chart-row">
+    <div class="card">
+      <div class="card-title">功能知曉率</div>
+      <div class="bar-row">
+        <div class="bar-label">知道，且能介紹</div>
+        <div class="bar-track"><div class="bar-fill c-good" style="width:100%"></div></div>
+        <div class="bar-val">14人 (93%)</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">不知道</div>
+        <div class="bar-track"><div class="bar-fill c-bad" style="width:7%"></div></div>
+        <div class="bar-val">1人 (7%)</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">推廣狀況</div>
+      <div class="bar-row">
+        <div class="bar-label">主動推廣</div>
+        <div class="bar-track"><div class="bar-fill c-good" style="width:100%"></div></div>
+        <div class="bar-val">8人 (53%)</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">客戶詢問時介紹</div>
+        <div class="bar-track"><div class="bar-fill c-warn" style="width:50%"></div></div>
+        <div class="bar-val">4人 (27%)</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">沒有推廣</div>
+        <div class="bar-track"><div class="bar-fill c-bad" style="width:37%"></div></div>
+        <div class="bar-val">3人 (20%)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart-row">
+    <div class="card">
+      <div class="card-title">客戶第一反應（多選，已推廣 12 人）</div>
+      <div class="bar-row">
+        <div class="bar-label">覺得普通</div>
+        <div class="bar-track"><div class="bar-fill c-bad" style="width:100%"></div></div>
+        <div class="bar-val">10 次</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">想看實際效果</div>
+        <div class="bar-track"><div class="bar-fill c-warn" style="width:30%"></div></div>
+        <div class="bar-val">3 次</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">不感興趣</div>
+        <div class="bar-track"><div class="bar-fill c-bad" style="width:20%"></div></div>
+        <div class="bar-val">2 次</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">詢問價格</div>
+        <div class="bar-track"><div class="bar-fill c-warn" style="width:10%"></div></div>
+        <div class="bar-val">1 次</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">購買狀況</div>
+      <div class="bar-row">
+        <div class="bar-label">已購買</div>
+        <div class="bar-track"><div class="bar-fill c-good" style="width:0%"></div></div>
+        <div class="bar-val">0人 (0%)</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">洽談中</div>
+        <div class="bar-track"><div class="bar-fill c-warn" style="width:9%"></div></div>
+        <div class="bar-val">1人 (7%)</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">沒有購買</div>
+        <div class="bar-track"><div class="bar-fill c-bad" style="width:100%"></div></div>
+        <div class="bar-val">12人 (80%)</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">未填寫</div>
+        <div class="bar-track"><div class="bar-fill c-muted" style="width:18%"></div></div>
+        <div class="bar-val">2人</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart-row">
+    <div class="card">
+      <div class="card-title">推廣困難（多選）</div>
+      <div class="bar-row">
+        <div class="bar-label">客戶看不出價值</div>
+        <div class="bar-track"><div class="bar-fill c-bad" style="width:100%"></div></div>
+        <div class="bar-val">9 次</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">缺乏 demo / 案例</div>
+        <div class="bar-track"><div class="bar-fill c-bad" style="width:56%"></div></div>
+        <div class="bar-val">5 次</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">沒有遇到困難</div>
+        <div class="bar-track"><div class="bar-fill c-good" style="width:22%"></div></div>
+        <div class="bar-val">2 次</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">不知道如何介紹</div>
+        <div class="bar-track"><div class="bar-fill c-warn" style="width:11%"></div></div>
+        <div class="bar-val">1 次</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">需要的銷售支援（多選）</div>
+      <div class="bar-row">
+        <div class="bar-label">成功案例</div>
+        <div class="bar-track"><div class="bar-fill" style="width:100%"></div></div>
+        <div class="bar-val">7 次</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">更完整產品說明</div>
+        <div class="bar-track"><div class="bar-fill" style="width:43%"></div></div>
+        <div class="bar-val">3 次</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">銷售話術 / 簡報</div>
+        <div class="bar-track"><div class="bar-fill" style="width:43%"></div></div>
+        <div class="bar-val">3 次</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">Demo 影片</div>
+        <div class="bar-track"><div class="bar-fill" style="width:43%"></div></div>
+        <div class="bar-val">3 次</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="chart-row">
+    <div class="card">
+      <div class="card-title">客戶不購買原因（多選）</div>
+      <div class="bar-row">
+        <div class="bar-label">效果不明顯</div>
+        <div class="bar-track"><div class="bar-fill c-bad" style="width:100%"></div></div>
+        <div class="bar-val">8 次</div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-label">不符合需求</div>
+        <div class="bar-track"><div class="bar-fill c-bad" style="width:50%"></div></div>
+        <div class="bar-val">4 次</div>
+      </div>
+    </div>
+
+    <div class="card" style="display:flex; flex-direction:column; gap:10px;">
+      <div class="card-title">業務推廣關鍵數字</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; flex:1;">
+        <div class="mini-kpi" style="margin:0;">
+          <div class="mk-label">推廣率</div>
+          <div class="mk-value">80%</div>
+          <div class="mk-sub">12 / 15 人有推廣</div>
+        </div>
+        <div class="mini-kpi" style="margin:0;">
+          <div class="mk-label">平均推廣次數</div>
+          <div class="mk-value">9.3</div>
+          <div class="mk-sub">次（11 人填寫）</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">客戶回饋 / 業務補充（文字）</div>
+    <div class="feedback-item bl-bad">
+      「客戶想像力都很差，需要看到效果很明顯或有趣的應用案例。」
+      <div class="fi-source">業務</div>
+    </div>
+    <div class="feedback-item bl-bad">
+      「目前遇到大多窗口覺得跟原本版位差異不大，算是額外的視覺效果。」
+      <div class="fi-source">業務（推廣 30 次經驗）</div>
+    </div>
+    <div class="feedback-item bl-warn">
+      「只是加分項沒有特別提到，無法成為直接成交的原因。」
+      <div class="fi-source">業務</div>
+    </div>
+    <div class="feedback-item bl-warn">
+      「蠻清楚的，只是客戶不需要。」
+      <div class="fi-source">業務</div>
+    </div>
+    <div class="feedback-item bl-good">
+      「能夠真的為廣告成效帶來效果（才更有說服力）。」
+      <div class="fi-source">業務（對功能的期望與建議）</div>
+    </div>
+  </div>
+</section>
+
+<!-- ────────────── 交叉比對分析 ────────────── -->
+<section>
+  <div class="section-head">
+    <h2>交叉比對分析</h2>
+  </div>
+
+  <div class="card">
+    <div class="cross-list">
+      <div class="cross-item">
+        <div class="cross-icon r">!</div>
+        <div>
+          <div class="ci-title">高接觸率、零轉換：推廣量已足夠，說服力是缺口</div>
+          <div class="ci-body">業務端知曉率 93%、推廣率 80%，15 人合計推廣約 125 次（平均每人 9.3 次）。然而目前成交 0 家、洽談中 1 家。問題不在「有沒有推廣」，而在「如何讓客戶感受差異」——「覺得普通」出現 10 次，直接說明功能的視覺說服力未到位。</div>
+        </div>
+      </div>
+      <div class="cross-item">
+        <div class="cross-icon r">!</div>
+        <div>
+          <div class="ci-title">Campaign 端 77% 未使用，難以支援業務端</div>
+          <div class="ci-body">13 位 Campaign 成員中只有 3 人實際操作過功能（使用率 23%），且其中有操作體驗的主要是參與開發者。Campaign 端親身體驗不足，使業務端遇到技術問題或客戶疑問時，無法獲得有力的內部支援。</div>
+        </div>
+      </div>
+      <div class="cross-item">
+        <div class="cross-icon r">!</div>
+        <div>
+          <div class="ci-title">「客戶看不出價值」（9次）＋「缺乏 demo / 案例」（5次）指向同一個根本缺口</div>
+          <div class="ci-body">業務最需要的不是更多文字說明，而是「讓客戶眼睛亮起來的視覺展示」。成功案例（7次）、Demo 影片 / 銷售話術 / 完整產品說明（各 3 次）是最高頻訴求，本質都是「有效的視覺證明」。</div>
+        </div>
+      </div>
+      <div class="cross-item">
+        <div class="cross-icon y">~</div>
+        <div>
+          <div class="ci-title">功能被定位為「加分項」，尚未成為差異化賣點</div>
+          <div class="ci-body">業務回饋「只是加分項，無法成為直接成交原因」，多位業務反映客戶認為「跟原本版位差異不大」。Campaign 端完整度評分 3.8/5 顯示功能本身仍有改進空間，但銷售瓶頸主要在展示層，而非功能本身的缺陷。</div>
+        </div>
+      </div>
+      <div class="cross-item">
+        <div class="cross-icon y">~</div>
+        <div>
+          <div class="ci-title">後台預覽效果不佳，形成認知斷點</div>
+          <div class="ci-body">Campaign 端反映「後台 demo 看不出效果」、「找不到按鈕」；業務端反映客戶「需要看到很明顯的應用案例」。後台體驗不足，使內部人員也無法有效展示功能，這個認知斷點從 Campaign 端延伸到客戶端。</div>
+        </div>
+      </div>
+      <div class="cross-item">
+        <div class="cross-icon r">!</div>
+        <div>
+          <div class="ci-title">⚠️ 警訊：部分成員混淆「滑動粒子」與「導引光圈」，功能認知失真</div>
+          <div class="ci-body">問卷回收中出現明確的功能混淆跡象。以普力司通為例，業務填寫為滑動粒子的成交案例，但該客戶實際使用的是「導引光圈」功能，屬於不同產品。此混淆現象同樣反映在 Campaign 端——設計師回饋「光條方便」，指的也是導引光圈的光條效果，而非滑動粒子特效。<br><br>這意味著：① 「知曉率 77%」與「推廣率 80%」可能存在虛報，部分成員對滑動粒子的實際功能並不清楚；② 業務端對功能的介紹準確性需重新確認；③ 目前「已成交 0 家」的真實數字，比原先認知的更嚴峻。釐清兩個功能的差異，是後續所有推廣工作的前提。</div>
+        </div>
+      </div>
+      <div class="cross-item">
+        <div class="cross-icon g">✓</div>
+        <div>
+          <div class="ci-title">正面：宣傳管道有效，業務積極性高</div>
+          <div class="ci-body">業務端 93% 知曉率來自業務會議（9次）的系統性宣導，說明知識傳遞機制運作良好。業務端的積極推廣動能（8 人主動推廣）是強項。目前有 1 筆洽談中，功能具有市場潛力，問題是銷售工具尚未跟上推廣量能。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ────────────── 整體結論 ────────────── -->
+<section>
+  <div class="section-head">
+    <h2>整體結論</h2>
+  </div>
+
+  <div class="summary-box">
+    <div class="sb-title">功能現況判讀</div>
+    <div class="sb-body">
+      滑動粒子特效屬於「<strong>知曉率看似高、成交率為零</strong>」的功能型態，但資料品質本身需要修正：問卷中存在明確的功能混淆現象，部分成員將「導引光圈」的案例與使用經驗誤報為滑動粒子，導致知曉率與推廣率數字可能虛高。<br><br>
+      在此前提下，有兩層問題需同步處理。第一層是<strong>認知問題</strong>：內部對兩個功能的差異尚未釐清，需先建立清晰的功能定義與對比說明。第二層是<strong>銷售工具問題</strong>：業務端已廣泛推廣（平均每人 9.3 次），但目前成交 0 家，客戶普遍「覺得普通」，反映功能視覺差異尚未被有效傳遞，缺乏讓客戶「秒懂差異」的展示材料。<br><br>
+      結論：在修正功能認知混淆之前，任何銷售工具的製作都存在方向錯誤的風險。<strong>釐清「滑動粒子 vs 導引光圈」的差異，是下一步所有行動的前提。</strong>
+    </div>
+  </div>
+</section>
+
+<!-- ────────────── 建議行動 ────────────── -->
+<section>
+  <div class="section-head">
+    <h2>建議行動</h2>
+  </div>
+
+  <div class="insights-grid">
+    <div class="insight-card ic-bad">
+      <div class="ic-tag t-bad">輔助銷售</div>
+      <div class="ic-title">更新 Sales Kit（含示意 Demo）</div>
+      <div class="ic-body">業務反映缺乏有效介紹工具，需要更完整的產品說明與銷售話術簡報（各 3 次）。建議更新 Sales Kit，加入功能亮點、適用版位說明，並附上滑動前後視覺對比的示意 Demo，讓業務有可直接使用的標準素材。「客戶看不出價值」（9/15 人）、「缺乏 demo / 案例」（5 次）是本次最高頻問題，示意 Demo 是解決關鍵。</div>
+    </div>
+    <div class="insight-card ic-bad">
+      <div class="ic-tag t-bad">輔助銷售</div>
+      <div class="ic-title">累積成功案例</div>
+      <div class="ic-body">「成功案例」是業務最高頻需求（7 次）。目前尚無滑動粒子的真實成交案例，建議鎖定洽談中客戶積極促成首筆成交，並即時整理成可對外分享的案例素材。</div>
+    </div>
+    <div class="insight-card ic-blue">
+      <div class="ic-tag t-blue">銷售策略</div>
+      <div class="ic-title">搭配下半年檔期組合包裝</div>
+      <div class="ic-body">單一功能視覺差異不明顯，難以獨立成交。功能上線初期原規劃搭配母親節專案做包裝推廣，但後續該專案未能執行，錯失初期累積案例的機會。建議把握下半年節慶檔期（周年慶、雙 11、雙 12 等），重新以組合包裝切入——將滑動粒子特效作為節慶活動版位的加值元素，透過整合銷售降低客戶決策門檻，同時藉此累積真實成交案例，為後續獨立推廣奠定基礎。</div>
+    </div>
+    <div class="insight-card ic-warn">
+      <div class="ic-tag t-warn">前提 · 優先</div>
+      <div class="ic-title">釐清「滑動粒子 vs 導引光圈」的功能差異</div>
+      <div class="ic-body">問卷顯示部分成員混淆兩個功能，導致推廣數據失真。建議由 PM 製作清晰的對比說明（含截圖、適用版位），在下次業務會議重新說明，確保所有銷售工具建立在正確的功能認知上。</div>
+    </div>
+  </div>
+</section>
+
+<div class="footer">
+  報告產生時間：2026-07-30 ・ 資料來源：功能Review彙整表 · 滑動粒子特效 ・ 回覆期間：2026/7/15–7/23 ・ 共 28 份回覆
+</div>
+
+</body>
+</html>
